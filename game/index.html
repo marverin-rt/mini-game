@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catch the Fruit Game</title>
+
+<style>
+    body {
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(#a3d8ff, #ffffff);
+        height: 100vh;
+        font-family: Arial;
+    }
+
+    #gameContainer {
+        width: 400px;
+        height: 600px;
+        background: #e3f6ff;
+        border: 4px solid #0077b6;
+        border-radius: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    #basket {
+        width: 80px;
+        height: 25px;
+        background: #8b4513;
+        border-radius: 10px;
+        position: absolute;
+        bottom: 10px;
+        left: 160px;
+    }
+
+    .fruit, .bomb {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        position: absolute;
+        top: -40px;
+    }
+
+    .banana { background: yellow; }
+    .mango { background: orange; }
+    .apple { background: red; }
+    .watermelon { background: green; }
+    .bomb { background: black; }
+
+    #scoreBoard {
+        width: 100%;
+        padding: 10px;
+        font-size: 20px;
+        font-weight: bold;
+        text-align: center;
+        background: #caf0f8;
+        border-bottom: 3px solid #0077b6;
+    }
+
+    #startScreen, #gameOverScreen {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-size: 28px;
+        gap: 20px;
+    }
+
+    .btn {
+        padding: 12px 25px;
+        font-size: 20px;
+        background: #0096c7;
+        border: none;
+        color: white;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+</style>
+</head>
+<body>
+
+<div id="gameContainer">
+
+    <div id="scoreBoard">
+        Score: <span id="score">0</span>
+    </div>
+
+    <div id="basket"></div>
+
+    <!-- START SCREEN -->
+    <div id="startScreen">
+        <div>🍇 Catch The Fruits!</div>
+        <button class="btn" id="startBtn">START GAME</button>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div id="gameOverScreen" style="display:none;">
+        <div id="finalScore">Score: 0</div>
+        <button class="btn" id="playAgainBtn">PLAY AGAIN</button>
+    </div>
+
+</div>
+
+<script>
+    const container = document.getElementById("gameContainer");
+    const basket = document.getElementById("basket");
+    const scoreText = document.getElementById("score");
+
+    const startScreen = document.getElementById("startScreen");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+    const startBtn = document.getElementById("startBtn");
+    const playAgainBtn = document.getElementById("playAgainBtn");
+
+    let score = 0;
+    let basketX = 160;
+    let gameActive = false;
+    let fallSpeedBoost = 0;
+
+    document.body.addEventListener("keydown", (e) => {
+        if (!gameActive) return;
+        if (e.key === "ArrowLeft" && basketX > 0) basketX -= 20;
+        if (e.key === "ArrowRight" && basketX < 320) basketX += 20;
+        basket.style.left = basketX + "px";
+    });
+
+    function resetGameSession() {
+        score = 0;
+        fallSpeedBoost = 0;
+        basketX = 160;
+        basket.style.left = "160px";
+        gameActive = false;
+        document.querySelectorAll('.fruit, .bomb').forEach(f => f.remove());
+        startScreen.style.display = "flex";
+        gameOverScreen.style.display = "none";
+        scoreText.textContent = score;
+    }
+
+    function startGame() {
+        score = 0;
+        fallSpeedBoost = 0;
+        gameActive = true;
+        scoreText.textContent = 0;
+        basketX = 160;
+        basket.style.left = "160px";
+        document.querySelectorAll('.fruit, .bomb').forEach(f => f.remove());
+        startScreen.style.display = "none";
+        gameOverScreen.style.display = "none";
+    }
+
+    startBtn.onclick = startGame;
+    playAgainBtn.onclick = startGame;
+
+    function spawnObject() {
+        if (!gameActive) return;
+
+        const drop = document.createElement("div");
+        const isBomb = Math.random() < 0.12;
+
+        if (isBomb) {
+            drop.classList.add("bomb");
+            drop.dataset.points = -999;
+        } else {
+            const types = [
+                { type: "banana", points: 4 },
+                { type: "mango", points: 6 },
+                { type: "apple", points: 2 },
+                { type: "watermelon", points: 8 }
+            ];
+            const chosen = types[Math.floor(Math.random() * types.length)];
+            drop.classList.add("fruit", chosen.type);
+            drop.dataset.points = chosen.points;
+        }
+
+        drop.style.left = Math.random() * 360 + "px";
+        container.appendChild(drop);
+
+        let fallSpeed = 1.5 + fallSpeedBoost;
+
+        let fall = setInterval(() => {
+            if (!gameActive) { clearInterval(fall); drop.remove(); return; }
+            drop.style.top = drop.offsetTop + fallSpeed + "px";
+
+            if (drop.offsetTop > 540 && drop.offsetLeft + 30 > basketX && drop.offsetLeft < basketX + 80) {
+                if (drop.classList.contains("bomb")) { endGame(); }
+                else { score += parseInt(drop.dataset.points); scoreText.textContent = score; }
+                drop.remove(); clearInterval(fall);
+            }
+
+            if (drop.offsetTop > 600) { drop.remove(); clearInterval(fall); }
+        }, 20);
+    }
+
+    function endGame() {
+        gameActive = false;
+        document.getElementById("finalScore").textContent = "Score: " + score;
+        gameOverScreen.style.display = "flex";
+    }
+
+    setInterval(() => { if (gameActive) fallSpeedBoost += 0.05; }, 1500);
+    setInterval(spawnObject, 1000);
+
+    // Reset game when user leaves the page or reloads
+    window.addEventListener('beforeunload', resetGameSession);
+
+</script>
+
+</body>
+</html>
